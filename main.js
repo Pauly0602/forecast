@@ -29,3 +29,34 @@ let layerControl = L.control.layers({
 L.control.scale({
     imperial: false,
 }).addTo(map);
+
+//MET Norway Vorhersage visualisieren 
+async function showForecast(latlng){
+console.log("Popup erzeugen bei", latlng);
+let url=`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=$${latlng.lat}&lon=${latlng.lng}`;
+console.log (url);
+let response = await fetch(url);
+let jsondata = await response.json ();
+console.log (jsondata);
+
+
+// Popup erzeugen 
+L.popup ( [
+    latlng.lat, latlng.lng
+], {
+content: "Juhu, Pause bis 20 nach!"
+}).openOn (overlays.forecast);
+}
+
+// auf Kartenklick reagieren 
+map.on ("click", function (evt) {
+    showForecast (evt.latlng);
+});
+
+// Klick auf Innsbruck simulieren 
+map.fire ("click", {
+    latlng:{
+        lat: ibk.lat,
+        lng: ibk.lng
+        }
+        }); 
