@@ -110,6 +110,9 @@ map.fire ("click", {
     // Windy Karte
 // Windy Karte
 
+    // Windy Karte
+// Windy Karte
+
     async function loadWindLayer() {
         try {
             const response = await fetch('https://geographie.uibk.ac.at/data/ecmwf/data/wind-10u-10v-europe.json');
@@ -126,4 +129,18 @@ map.fire ("click", {
                     directionString: "Richtung",
                     speedString: "Geschwindigkeit (km/h)"
                 },
-                
+                data: data,
+                minVelocity: 0,
+                maxVelocity: 20,
+                velocityScale: 0.005,
+                colorScale: ["#2b83ba", "#abdda4", "#ffffbf", "#fdae61", "#d7191c"
+                ],
+                opacity: 0.97
+            }).addTo(map);
+        } catch (error) {
+            console.error("Fehler beim Laden der Winddaten:", error);
+            alert("Winddaten konnten nicht geladen werden.");
+        }
+    }
+
+    loadWindLayer();
