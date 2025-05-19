@@ -107,12 +107,15 @@ map.fire ("click", {
         
 // Wind Karte mit Pfeilen 
 
+    // Windy Karte
+// Windy Karte
+
     async function loadWindLayer() {
         try {
             const response = await fetch('https://geographie.uibk.ac.at/data/ecmwf/data/wind-10u-10v-europe.json');
             const data = await response.json();
             
-        const velocityLayer = L.velocityLayer({
+            const velocityLayer = L.velocityLayer({
                 displayValues: true,
                 displayOptions: {
                     velocityType: "Wind",
@@ -123,4 +126,4 @@ map.fire ("click", {
                     directionString: "Richtung",
                     speedString: "Geschwindigkeit (km/h)"
                 },
-        
+                
