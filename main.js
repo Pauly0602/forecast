@@ -104,3 +104,23 @@ map.fire ("click", {
         lng: ibk.lng
         }
         }); 
+        
+// Wind Karte mit Pfeilen 
+
+    async function loadWindLayer() {
+        try {
+            const response = await fetch('https://geographie.uibk.ac.at/data/ecmwf/data/wind-10u-10v-europe.json');
+            const data = await response.json();
+            
+        const velocityLayer = L.velocityLayer({
+                displayValues: true,
+                displayOptions: {
+                    velocityType: "Wind",
+                    position: "bottomleft",
+                    speedUnit: "km/h",
+                    emptyString: "Keine Winddaten verfügbar",
+                    showCardinal: true,
+                    directionString: "Richtung",
+                    speedString: "Geschwindigkeit (km/h)"
+                },
+        
