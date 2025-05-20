@@ -11,7 +11,7 @@ let map = L.map("map").setView([ibk.lat, ibk.lng], 5);
 
 // thematische Layer
 let overlays = {
-    forecast: L.featureGroup().addTo(map),
+    forecast: L.featureGroup(),
     wind: L.featureGroup().addTo(map)
 }
 
@@ -30,117 +30,109 @@ L.control.scale({
     imperial: false,
 }).addTo(map);
 
-// Ort über OpenStreetMap reverse geocoding bestimmen 
-async function getPlaceName (url){
-    let response = await fetch (url);
-    let jsondata = await response.json ();
-    return jsondata.display_name; 
+// Windrichtung
+// Winddaten visualisieren mit Leaflet Velocity
+async function loadWindData() {
+    const response = await fetch("https://geographie.uibk.ac.at/data/ecmwf/data/wind-10u-10v-europe.json");
+    const windData = await response.json();
+
+    const velocityLayer = L.velocityLayer({
+        displayValues: true,
+        displayOptions: {
+            // label prefix
+            velocityType: "Global Wind",
+            // leaflet control position
+            displayPosition: "bottomleft",
+            // no data at cursor
+            displayEmptyString: "Keine Winddaten verfügbar",
+            // see explanation below
+            angleConvention: "bearingCW",
+            // display cardinal direction alongside degrees
+            showCardinal: false,
+            // one of: ['ms', 'k/h', 'mph', 'kt']
+            speedUnit: "km/h",
+            // direction label prefix
+            directionString: "Direction",
+            // speed label prefix
+            speedString: "Speed",
+        },
+        data: windData,
+    
+    }).addTo(overlays.wind);
+}
+
+// Winddaten beim Start laden
+loadWindData();
+
+//Orte über OpenStreetmap Reverse Geocoding bestimmt
+async function getPlaceName(url) {
+    let response = await fetch(url);
+    let jsondata = await response.json();
+    //console.log(jsondata);
+    return jsondata.display_name;
+}
+
+// Wettervorhersage MET Norway
+async function showForecast(latlng) {
+    //console.log("Popup erzeugt bei", latlng);
+    let url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${latlng.lat}&lon=${latlng.lng}`;
+    let osmUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&zoom=15&format=jsonv2`;
+    let placeName = await getPlaceName(osmUrl);
+
+    //console.log(url);
+    let response = await fetch(url);
+    let jsondata = await response.json();
+    //console.log(jsondata);
+
+    //Popup erstellen
+    
+    let details = jsondata.properties.timeseries[0].data.instant.details;
+    let timestamp = new Date(jsondata.properties.meta.updated_at);
+    let markup =`
+        <h3>Wettervorhersage für ${timestamp.toLocaleString()}</h3>
+        <small>Ort: ${placeName}</small>
+        <ul>
+            <li>Luftdruck (hPa): ${details.air_pressure_at_sea_level}</li>
+            <li>Lufttemperatur (C°): ${details.air_temperature}</li>
+            <li>Bewölkungsgrad (%): ${details.cloud_area_fraction}</li>
+            <li>Luftfeuchtigkeit (%): ${details.relative_humidity}</li>
+            <li>Windrichtung (°): ${details.wind_from_direction}</li>
+            <li>Windgeschwindigkeit (km/h): ${details.wind_speed}</li>
+        </ul>
+        `;
+  
+    //Wettericons für die nächsten 24 Stunden in 3 Stunden Schritten
+    for (let i = 0; i <= 24; i+=3) {
+        let symbol = jsondata.properties.timeseries[i].data.next_1_hours.summary.symbol_code;
+        let time = new Date(jsondata.properties.timeseries[i].time);
+        markup += `<img src="icons/${symbol}.svg" style="width:32px" title="${time.toLocaleString()}">`;
     }
 
-//MET Norway Vorhersage visualisieren 
-async function showForecast(latlng){
-console.log("Popup erzeugen bei", latlng);
-let url=`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${latlng.lat}&lon=${latlng.lng}`;
-let osmUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&zoom=15&format=jsonv2`;
+    //Links zu den Json-Daten
+    markup += `
+    <p>
+        <a href="${url}" target="forecast">Daten downloaden</a> |
+        <a href="${osmUrl}" target="forecast">OSM Details zum Ort</a>
+    </p>
+    `;   
 
-let placeName = await getPlaceName (osmUrl);
-
-let response = await fetch(url);
-let jsondata = await response.json();
-
-
-
-// Popup erzeugen 
-let details = jsondata.
-properties.timeseries[0].
-data.instant.details;
-let timestamp = new Date (jsondata.properties.meta.updated_at);
-let markup= `
-<h3>Wettervorhersage für ${timestamp.toLocaleString()} </h3>
-<small> Ort: ${placeName} </small>
- <ul>
-<li> Luftdruck (hPa): ${details.air_pressure_at_sea_level}</li>
-<li>Lufttemperatur in (°C):${details.air_temperature }</li>
-<li>Bewölkungsgrad (%): ${details.cloud_area_fraction}</li>
-<li>Luftfeuchtigkeit (%): ${details.relative_humidity}</li>
-<li>Windrichtung(°): ${details.wind_from_direction}</li>
-<li>Windgeschwindigkeit (km/h): ${details.wind_speed}</li>
-</ul>
-`;
- 
-// Wettericons für die nächsten 24h in 3h Schritten 
-for (let i=0; i<=24; i+=3){
-    let symbol = jsondata.properties.timeseries[i].data.
-    next_1_hours.summary.symbol_code;
-    let time = new Date (jsondata.properties.timeseries[i].time);
-    markup +=`<img src="icons/${symbol}.svg" style="width:32px"
-    title= "${time.toLocaleString()}">`;
+    L.popup([
+        latlng.lat, latlng.lng
+    ], {
+        content: markup,
+    }).openOn(overlays.forecast);
 }
 
-// Links zu den JSON - Daten 
-markup += `
-<p>
-<a href = "${url}" target = "forecast"> Daten downloaden </a> 
-<a href= "${osmUrl}" target = "forecast"> OSM Details zum Ort </a>
-</p>
-`;
 
-L.popup ( [
-    latlng.lat, latlng.lng
-], {
-content: markup
-}).openOn (overlays.forecast);
-}
-
-// auf Kartenklick reagieren 
-map.on ("click", function (evt) {
-    showForecast (evt.latlng);
+// auf Kartenklick reagieren
+map.on("click", function (evt) {
+    showForecast(evt.latlng);
 });
 
-// Klick auf Innsbruck simulieren 
-map.fire ("click", {
-    latlng:{
+// KLick auf Innsbruck simulieren
+map.fire("click", {
+    latlng: {
         lat: ibk.lat,
         lng: ibk.lng
-        }
-        }); 
-        
-// Wind Karte mit Pfeilen 
-
-    // Windy Karte
-// Windy Karte
-
-    // Windy Karte
-// Windy Karte
-
-    async function loadWindLayer() {
-        try {
-            const response = await fetch('https://geographie.uibk.ac.at/data/ecmwf/data/wind-10u-10v-europe.json');
-            const data = await response.json();
-            
-            const velocityLayer = L.velocityLayer({
-                displayValues: true,
-                displayOptions: {
-                    velocityType: "Wind",
-                    position: "bottomleft",
-                    speedUnit: "km/h",
-                    emptyString: "Keine Winddaten verfügbar",
-                    showCardinal: true,
-                    directionString: "Richtung",
-                    speedString: "Geschwindigkeit (km/h)"
-                },
-                data: data,
-                minVelocity: 0,
-                maxVelocity: 20,
-                velocityScale: 0.005,
-                colorScale: ["#2b83ba", "#abdda4", "#ffffbf", "#fdae61", "#d7191c"
-                ],
-                opacity: 0.97
-            }).addTo(map);
-        } catch (error) {
-            console.error("Fehler beim Laden der Winddaten:", error);
-            alert("Winddaten konnten nicht geladen werden.");
-        }
     }
-
-    loadWindLayer();
+});
